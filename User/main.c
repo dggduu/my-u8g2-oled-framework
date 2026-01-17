@@ -1,16 +1,23 @@
 #include "Delay.h"
 #include "HList.h"
-#include "splash_screen.h"
 #include "VList.h"
 #include "btn_fifo.h"
 #include "page_stack.h"
+#include "screen.h"
+#include "splash_screen.h"
 #include "stm32f10x.h"
 #include "u8g2.h"
 #include "uart.h"
 #include "ui.h"
 #include <math.h>
-#include "screen.h"
+
 extern const uint8_t icon_list[][128];
+
+#define ICON_SETTINGS 0x0081 // 设置图标
+#define ICON_ABOUT 0x0114    // 关于图标
+#define ICON_LOCK 0x0057     // 保护项图标
+#define ICON_UNLOCK 0x0078   // 保护项图标
+
 const Screen_t g_screen_cfg = DEFAULT_SCREEN_CONFIG;
 u8g2_t u8g2;
 hlist_t g_main_hlist;
@@ -38,13 +45,13 @@ static void my_splash_draw(u8g2_t *u8g2, const Screen_t *screen_cfg) {
   uint8_t hour = 12, min = 30, sec = (tick_count / 10) % 60;
   char time_str[10];
   sprintf(time_str, "%02d:%02d:%02d", hour, min, sec);
-  u8g2_SetFont(u8g2, u8g2_font_logisoso16_tn);
+  u8g2_SetFont(u8g2, u8g2_font_logisoso20_tn);
   int time_width = u8g2_GetStrWidth(u8g2, time_str);
   u8g2_DrawStr(u8g2, (screen_cfg->width - time_width) / 2,
-               screen_cfg->height / 2, time_str);
+               screen_cfg->height / 2 + 10, time_str);
 
   // 提示文字
-  u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
+  u8g2_SetFont(u8g2, u8g2_font_5x7_tf);
   const char *hint = "Press any btn to enter";
   u8g2_DrawStr(u8g2, (screen_cfg->width - u8g2_GetStrWidth(u8g2, hint)) / 2,
                screen_cfg->height - 5, hint);
@@ -108,15 +115,18 @@ static void ui_menu_init(void) {
   vlist_add_text(&g_about_menu, "Build: 2026-01");
 
   // 主菜单
-  hlist_add_item(&g_main_hlist, "SETTINGS", icon_list[1], &VLIST_COMP,
-                 &g_setting_main_menu);
-  hlist_add_item(&g_main_hlist, "OSCILLO", icon_list[0], &OSC_APP_COMP, NULL);
-  hlist_add_item(&g_main_hlist, "ABOUT", icon_list[2], &VLIST_COMP,
-                 &g_about_menu);
-  hlist_add_protected_item(&g_main_hlist, "Protected.false", icon_list[3],
-                           &VLIST_COMP, &g_about_menu, false, "Try Again!");
-  hlist_add_protected_item(&g_main_hlist, "Protected.true", icon_list[3],
-                           &VLIST_COMP, &g_about_menu, true, "Try Again!");
+  hlist_add_glyph_item(&g_main_hlist, "SETTINGS", ICON_SETTINGS, &VLIST_COMP,
+                       &g_setting_main_menu);
+  hlist_add_xbm_item(&g_main_hlist, "OSCILLO", icon_list[3], &OSC_APP_COMP,
+                     NULL);
+  hlist_add_glyph_item(&g_main_hlist, "ABOUT", ICON_ABOUT, &VLIST_COMP,
+                       &g_about_menu);
+  hlist_add_protected_glyph_item(&g_main_hlist, "Protected.false", ICON_LOCK,
+                                 &VLIST_COMP, &g_about_menu, false,
+                                 "Try Again!");
+  hlist_add_protected_glyph_item(&g_main_hlist, "Protected.true", ICON_UNLOCK,
+                                 &VLIST_COMP, &g_about_menu, true,
+                                 "Try Again!");
 
   // 初始化SplashScreen
   splash_screen_init(&g_main_hlist, my_splash_draw);

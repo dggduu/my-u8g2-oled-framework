@@ -75,21 +75,22 @@ void hlist_init(hlist_t *hl, uint32_t *tick_ptr) {
 }
 
 /**
- * @brief  添加普通列表项
+ * @brief  添加XBM位图类型的列表项
  *
  * @param[in]  a
  * @param[in]  b
  *
  * @return
  */
-void hlist_add_item(hlist_t *hl, const char *title, const uint8_t *icon,
+void hlist_add_xbm_item(hlist_t *hl, const char *title, const uint8_t *icon_xbm,
                     const page_component_t *comp, void *ctx) {
   if (hl == NULL) {
     return;
   }
   if (hl->count < 8) {
     hl->items[hl->count].title = title;
-    hl->items[hl->count].icon_xbm = icon;
+    hl->items[hl->count].icon_type = ICON_TYPE_XBM;
+    hl->items[hl->count].icon_data.xbm = icon_xbm;
     hl->items[hl->count].comp = comp;
     hl->items[hl->count].ctx = ctx;
     hl->items[hl->count].protect.guard_flag = true;
@@ -99,22 +100,74 @@ void hlist_add_item(hlist_t *hl, const char *title, const uint8_t *icon,
 }
 
 /**
- * @brief  添加带保护的列表项
+ * @brief  添加Glyph字符类型的列表项
  *
  * @param[in]  a
  * @param[in]  b
  *
  * @return
  */
-void hlist_add_protected_item(hlist_t *hl, const char *title,
-                              const uint8_t *icon, const page_component_t *comp,
-                              void *ctx, bool guard_flag, char *alert_text) {
+void hlist_add_glyph_item(hlist_t *hl, const char *title, uint16_t glyph,
+                    const page_component_t *comp, void *ctx) {
+  if (hl == NULL) {
+    return;
+  }
+  if (hl->count < 8) {
+    hl->items[hl->count].title = title;
+    hl->items[hl->count].icon_type = ICON_TYPE_GLYPH;
+    hl->items[hl->count].icon_data.glyph = glyph;
+    hl->items[hl->count].comp = comp;
+    hl->items[hl->count].ctx = ctx;
+    hl->items[hl->count].protect.guard_flag = true;
+    hl->items[hl->count].protect.alert_text = NULL;
+    hl->count++;
+  }
+}
+
+/**
+ * @brief  添加带保护的XBM位图类型列表项
+ *
+ * @param[in]  a
+ * @param[in]  b
+ *
+ * @return
+ */
+void hlist_add_protected_xbm_item(hlist_t *hl, const char *title,
+                    const uint8_t *icon_xbm, const page_component_t *comp,
+                    void *ctx, bool guard_flag, char *alert_text) {
   if (hl == NULL || alert_text == NULL) {
     return;
   }
   if (hl->count < 8) {
     hl->items[hl->count].title = title;
-    hl->items[hl->count].icon_xbm = icon;
+    hl->items[hl->count].icon_type = ICON_TYPE_XBM;
+    hl->items[hl->count].icon_data.xbm = icon_xbm;
+    hl->items[hl->count].comp = comp;
+    hl->items[hl->count].ctx = ctx;
+    hl->items[hl->count].protect.guard_flag = guard_flag;
+    hl->items[hl->count].protect.alert_text = alert_text;
+    hl->count++;
+  }
+}
+
+/**
+ * @brief  添加带保护的Glyph字符类型列表项
+ *
+ * @param[in]  a
+ * @param[in]  b
+ *
+ * @return
+ */
+void hlist_add_protected_glyph_item(hlist_t *hl, const char *title,
+                    uint16_t glyph, const page_component_t *comp,
+                    void *ctx, bool guard_flag, char *alert_text) {
+  if (hl == NULL || alert_text == NULL) {
+    return;
+  }
+  if (hl->count < 8) {
+    hl->items[hl->count].title = title;
+    hl->items[hl->count].icon_type = ICON_TYPE_GLYPH;
+    hl->items[hl->count].icon_data.glyph = glyph;
     hl->items[hl->count].comp = comp;
     hl->items[hl->count].ctx = ctx;
     hl->items[hl->count].protect.guard_flag = guard_flag;
@@ -158,11 +211,29 @@ void hlist_draw(u8g2_t *u8g2, void *ctx) {
     // 绘制屏幕可见范围内的图标
     if (x > -ICON_WIDTH && x < screen_cfg->width) {
       u8g2_SetDrawColor(u8g2, 1);
-      if (hl->items[i].icon_xbm != NULL) {
-        int icon_y =
-            (screen_cfg->height - ICON_HEIGHT - screen_cfg->font_height) / 2;
-        u8g2_DrawXBM(u8g2, x, icon_y, ICON_WIDTH, ICON_HEIGHT,
-                     hl->items[i].icon_xbm);
+      int icon_y = (screen_cfg->height - ICON_HEIGHT - screen_cfg->font_height) / 2;
+      
+      // 根据图标类型选择绘制方式
+      switch (hl->items[i].icon_type) {
+        case ICON_TYPE_XBM:
+          // XBM位图绘制逻辑
+          if (hl->items[i].icon_data.xbm != NULL) {
+            u8g2_DrawXBM(u8g2, x, icon_y, ICON_WIDTH, ICON_HEIGHT,
+                        hl->items[i].icon_data.xbm);
+          }
+          break;
+          
+        case ICON_TYPE_GLYPH:
+          // Glyph字符绘制逻辑
+          u8g2_SetFont(u8g2, HLIST_ICON_FONT);
+          // 计算字符居中显示的偏移
+          int glyph_x = x + (ICON_WIDTH - u8g2_GetGlyphWidth(u8g2, hl->items[i].icon_data.glyph)) / 2;
+          int glyph_y = icon_y + ICON_HEIGHT - (ICON_HEIGHT - u8g2_GetFontAscent(u8g2)) / 2;
+          u8g2_DrawGlyph(u8g2, glyph_x, glyph_y, hl->items[i].icon_data.glyph);
+          break;
+          
+        default:
+          break;
       }
     }
   }

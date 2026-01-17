@@ -7,16 +7,23 @@
 #include "screen.h"
 
 // ==========  配置项 ==========
-#define ICON_WIDTH 			32
-#define ICON_HEIGHT 		32
-#define ICON_GAP 			50
-// 配置文本使用的字体（可以使用screen_cfg->font）
-#define HLIST_TEXT_FONT		u8g2_font_8x13_tr
-//动画时长
-#define HLIST_ANIM_TICKS 	15
+#define ICON_WIDTH 32
+#define ICON_HEIGHT 32
+#define ICON_GAP 50
+// 配置文本使用的字体
+#define HLIST_TEXT_FONT u8g2_font_8x13_tr
+#define HLIST_ICON_FONT u8g2_font_open_iconic_all_4x_t
+// 动画时长
+#define HLIST_ANIM_TICKS 15
 // 图标使用的缓动动画
-#define HLIST_ICON_ANIM		QuinticEaseInOut
-#define HLIST_TEXT_ANIM		QuinticEaseOut
+#define HLIST_ICON_ANIM QuinticEaseInOut
+#define HLIST_TEXT_ANIM QuinticEaseOut
+
+// 图标类型枚举
+typedef enum {
+  ICON_TYPE_XBM,  // XBM位图图标
+  ICON_TYPE_GLYPH // 字符图标
+} icon_type_t;
 
 // ========== 结构体定义  ==========
 typedef struct {
@@ -26,7 +33,11 @@ typedef struct {
 
 typedef struct {
   const char *title;
-  const uint8_t *icon_xbm;
+  icon_type_t icon_type; // 新增：图标类型
+  union {                // 共用体存储不同类型的图标数据
+    const uint8_t *xbm;  // XBM位图数据
+    uint16_t glyph;      // Glyph字符编码
+  } icon_data;
   const page_component_t *comp;
   void *ctx;
   hlist_protect_t protect;
@@ -48,10 +59,17 @@ typedef struct {
 extern const page_component_t HLIST_COMP;
 
 void hlist_init(hlist_t *hl, uint32_t *tick_ptr);
-void hlist_add_item(hlist_t *hl, const char *title, const uint8_t *icon,
-                    const page_component_t *comp, void *ctx);
-void hlist_add_protected_item(hlist_t *hl, const char *title,
-                              const uint8_t *icon, const page_component_t *comp,
-                              void *ctx, bool guard_flag, char *alert_text);
+void hlist_add_xbm_item(hlist_t *hl, const char *title, const uint8_t *icon_xbm,
+                        const page_component_t *comp, void *ctx);
+void hlist_add_glyph_item(hlist_t *hl, const char *title, uint16_t glyph,
+                          const page_component_t *comp, void *ctx);
+void hlist_add_protected_xbm_item(hlist_t *hl, const char *title,
+                                  const uint8_t *icon_xbm,
+                                  const page_component_t *comp, void *ctx,
+                                  bool guard_flag, char *alert_text);
+void hlist_add_protected_glyph_item(hlist_t *hl, const char *title,
+                                    uint16_t glyph,
+                                    const page_component_t *comp, void *ctx,
+                                    bool guard_flag, char *alert_text);
 
 #endif
