@@ -1,10 +1,10 @@
 #include "VList.h"
+#include "portal_component.h"
 #include "u8g2.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
 #define PREFIX_SUBMENU "-"
 #define PREFIX_ACTION ">"
 
@@ -30,6 +30,7 @@ static uint8_t get_right_item_width(u8g2_t *u8g2, const Screen_t *screen_cfg,
                                                   : screen_cfg->num_min_width);
   }
   case VITEM_ACTION:
+    return 0;
   case VITEM_PROTECTED_ACTION:
     return 0;
   case VITEM_SUBMENU:
@@ -40,160 +41,6 @@ static uint8_t get_right_item_width(u8g2_t *u8g2, const Screen_t *screen_cfg,
   default:
     return 0;
   }
-}
-
-/**
- * @brief  工具函数：绘制带停顿的滚动文本
- *
- * @param[in]  a
- * @param[in]  b
- *
- * @return
- */
-static void draw_scroll_text_with_pause(u8g2_t *u8g2,
-                                        const Screen_t *screen_cfg,
-                                        const char *text, uint8_t start_x,
-                                        uint8_t max_width, uint8_t y,
-                                        uint32_t tick, uint8_t clip_y1,
-                                        uint8_t clip_y2) {
-  if (u8g2 == NULL || screen_cfg == NULL || text == NULL || max_width == 0)
-    return;
-
-  int text_width = u8g2_GetStrWidth(u8g2, text);
-  if (text_width <= max_width) {
-    g_screen_cfg.draw_text(u8g2, start_x, y, text);
-    return;
-  }
-
-  int gap = 20;
-  int total_len = text_width + gap;
-  int pause_ticks = screen_cfg->scroll_pause_ticks;
-  int scroll_ticks = total_len * screen_cfg->scroll_speed_divisor;
-  int total_cycle_ticks = pause_ticks + scroll_ticks;
-  uint32_t cycle_tick = tick % total_cycle_ticks;
-
-  if (cycle_tick < pause_ticks) {
-    u8g2_SetClipWindow(u8g2, start_x, clip_y1, start_x + max_width, clip_y2);
-    g_screen_cfg.draw_text(u8g2, start_x, y, text);
-    u8g2_SetMaxClipWindow(u8g2);
-    return;
-  }
-
-  uint32_t scroll_start_tick = cycle_tick - pause_ticks;
-  int offset = scroll_start_tick / screen_cfg->scroll_speed_divisor;
-  int draw_x = start_x - offset;
-
-  u8g2_SetClipWindow(u8g2, start_x, clip_y1, start_x + max_width, clip_y2);
-  g_screen_cfg.draw_text(u8g2, draw_x, y, text);
-  g_screen_cfg.draw_text(u8g2, draw_x + total_len, y, text);
-  u8g2_SetMaxClipWindow(u8g2);
-}
-
-/**
- * @brief  绘制数值编辑弹窗
- *
- * @param[in]  a
- * @param[in]  b
- *
- * @return
- */
-static void draw_num_window(u8g2_t *u8g2, const Screen_t *screen_cfg,
-                            vlist_t *list) {
-  if (u8g2 == NULL || screen_cfg == NULL || list == NULL ||
-      list->editor.target_idx >= list->count) {
-    return;
-  }
-
-  vitem_t *it = &list->items[list->editor.target_idx];
-  if (it->type != VITEM_NUM_EDIT || it->user_data == NULL) {
-    return;
-  }
-
-  float val = *(float *)it->user_data;
-  char buf[16];
-
-  int w = 100, h = 48;
-  int x = (screen_cfg->width - w) / 2;
-  int y = (screen_cfg->height - h) / 2;
-
-  u8g2_SetDrawColor(u8g2, 0);
-  u8g2_DrawBox(u8g2, x, y, w, h);
-  u8g2_SetDrawColor(u8g2, 1);
-  u8g2_DrawFrame(u8g2, x, y, w, h);
-
-  u8g2_SetFont(u8g2, screen_cfg->sub_window_font);
-
-  uint8_t clip_y1 = y + 1;
-  uint8_t clip_y2 = y + 13;
-
-  int title_max_w = 60;
-  draw_scroll_text_with_pause(u8g2, screen_cfg, it->title, x + 5, title_max_w,
-                              y + 12, *list->main_tick, clip_y1, clip_y2);
-
-  sprintf(buf, "%.1f", val);
-  int num_width = u8g2_GetStrWidth(u8g2, buf);
-  int num_max_w = 25;
-  int num_start_x = x + w - num_max_w - 5;
-  draw_scroll_text_with_pause(u8g2, screen_cfg, buf, num_start_x, num_max_w,
-                              y + 12, *list->main_tick, clip_y1, clip_y2);
-
-  int bx = x + 10, by = y + 22, bw = w - 20, bh = 7;
-  u8g2_DrawFrame(u8g2, bx, by, bw, bh);
-  float ratio = (val - it->min) / (it->max - it->min);
-  if (it->max <= it->min)
-    ratio = 0.0f;
-  u8g2_DrawBox(u8g2, bx + 2, by + 2, (int)((bw - 4) * ratio), bh - 4);
-
-  u8g2_SetFont(u8g2, screen_cfg->sub_window_font);
-  sprintf(buf, "%.1f", it->min);
-  g_screen_cfg.draw_text(u8g2, bx, y + 42, buf);
-
-  sprintf(buf, "%.1f", it->step);
-  g_screen_cfg.draw_text(u8g2, x + (w - u8g2_GetStrWidth(u8g2, buf)) / 2,
-                         y + 42, buf);
-
-  sprintf(buf, "%.1f", it->max);
-  g_screen_cfg.draw_text(u8g2, x + w - u8g2_GetStrWidth(u8g2, buf) - 10, y + 42,
-                         buf);
-}
-
-/**
- * @brief  绘制保护子菜单提示弹窗
- *
- * @param[in]  a
- * @param[in]  b
- *
- * @return
- */
-static void draw_alert_window(u8g2_t *u8g2, const Screen_t *screen_cfg,
-                              vlist_t *list) {
-  if (u8g2 == NULL || screen_cfg == NULL || list == NULL ||
-      !list->alert.active || list->alert.text == NULL) {
-    return;
-  }
-
-  int w = 100, h = 35;
-  int x = (screen_cfg->width - w) / 2;
-  int y = (screen_cfg->height - h) / 2;
-
-  u8g2_SetDrawColor(u8g2, 0);
-  u8g2_DrawBox(u8g2, x, y, w, h);
-  u8g2_SetDrawColor(u8g2, 1);
-  u8g2_DrawFrame(u8g2, x, y, w, h);
-
-  u8g2_SetFont(u8g2, screen_cfg->sub_window_font);
-  const char *alert_title = list->alert.title ? list->alert.title : "alert";
-  int title_width = u8g2_GetStrWidth(u8g2, alert_title);
-  g_screen_cfg.draw_text(u8g2, x + (w - title_width) / 2, y + 12, alert_title);
-
-  u8g2_DrawHLine(u8g2, x + 5, y + 15, w - 10);
-
-  uint8_t clip_y1 = y + 16;
-  uint8_t clip_y2 = y + 28;
-  int text_max_w = w - 10;
-  draw_scroll_text_with_pause(u8g2, screen_cfg, list->alert.text, x + 5,
-                              text_max_w, y + 27, *list->main_tick, clip_y1,
-                              clip_y2);
 }
 
 /**
@@ -318,9 +165,8 @@ void vlist_draw(u8g2_t *u8g2, void *ctx) {
     if (curr_item->type == VITEM_SUBMENU ||
         curr_item->type == VITEM_PROTECTED_SUBMENU) {
       g_screen_cfg.draw_text(u8g2, 5, item_y, PREFIX_SUBMENU);
-    }
-    else if (curr_item->type == VITEM_ACTION ||
-             curr_item->type == VITEM_PROTECTED_ACTION) {
+    } else if (curr_item->type == VITEM_ACTION ||
+               curr_item->type == VITEM_PROTECTED_ACTION) {
       g_screen_cfg.draw_text(u8g2, 5, item_y, PREFIX_ACTION);
     }
 
@@ -351,16 +197,6 @@ void vlist_draw(u8g2_t *u8g2, void *ctx) {
                                   num_max_width, item_y, *list->main_tick,
                                   clip_y1, clip_y2);
     }
-  }
-
-  // 绘制数值编辑弹窗
-  if (list->editor.active) {
-    draw_num_window(u8g2, screen_cfg, list);
-  }
-
-  // 绘制提示弹窗
-  if (list->alert.active) {
-    draw_alert_window(u8g2, screen_cfg, list);
   }
 }
 
@@ -527,36 +363,6 @@ void vlist_input_handler(int btn, void *ctx) {
 
   vlist_t *list = (vlist_t *)ctx;
 
-  // 优先处理提示弹窗
-  if (list->alert.active) {
-    if (btn == BTN_ENTER || btn == BTN_BACK) {
-      list->alert.active = false; // 关闭弹窗
-      list->alert.title = NULL;
-      list->alert.text = NULL;
-    }
-    return;
-  }
-
-  // 处理数值编辑器
-  if (list->editor.active) {
-    vitem_t *it = &list->items[list->editor.target_idx];
-    if (list->editor.target_idx >= list->count || it->type != VITEM_NUM_EDIT ||
-        !it->user_data) {
-      list->editor.active = false;
-      return;
-    }
-
-    float *val = (float *)it->user_data;
-    if (btn == BTN_UP) {
-      *val = fminf(*val + it->step, it->max);
-    } else if (btn == BTN_DOWN) {
-      *val = fmaxf(*val - it->step, it->min);
-    } else if (btn == BTN_ENTER || btn == BTN_BACK) {
-      list->editor.active = false;
-    }
-    return;
-  }
-
   // 处理上下键滚动
   bool animation_triggered = false;
   if (btn == BTN_UP && list->to_index > 0) {
@@ -589,8 +395,15 @@ void vlist_input_handler(int btn, void *ctx) {
         *(bool *)it->user_data = !*(bool *)it->user_data;
       break;
     case VITEM_NUM_EDIT:
-      list->editor.active = true;
-      list->editor.target_idx = list->to_index;
+      page_stack_portal_toggle(&g_page_stack, &PORTAL_NUM,
+                               &(portal_ctx_num_t){
+								   .title = "num_select",
+								   .val_ptr = (float*)it->user_data,
+								   .min = -100,
+								   .max = 100,
+								   .step = 3,
+								},
+                               sizeof(portal_ctx_num_t));
       break;
     case VITEM_SUBMENU:
       if (it->user_data) {
@@ -611,10 +424,12 @@ void vlist_input_handler(int btn, void *ctx) {
           page_stack_push(&g_page_stack, &VLIST_COMP, child);
         }
       } else {
-        list->alert.active = true;
-        list->alert.title = it->alert_title;
-        list->alert.text = it->alert_text;
+        page_stack_portal_toggle(
+            &g_page_stack, &PORTAL_MESSAGE_BOX,
+            &(portal_ctx_message_box_t){.title = "Warning", .msg = it->alert_text},
+            sizeof(portal_ctx_message_box_t));
       }
+      break;
       break;
     case VITEM_ACTION:
       if (it->user_data && ((vlist_action_data_t *)it->user_data)->comp) {
@@ -622,7 +437,7 @@ void vlist_input_handler(int btn, void *ctx) {
         page_stack_push(&g_page_stack, action_data->comp, action_data->ctx);
       }
       break;
-    //带保护的组件入口处理逻辑
+    // 带保护的组件入口处理逻辑
     case VITEM_PROTECTED_ACTION:
       if (it->user_data) {
         vlist_protected_action_data_t *prot_action =
@@ -631,9 +446,10 @@ void vlist_input_handler(int btn, void *ctx) {
           page_stack_push(&g_page_stack, prot_action->action_data.comp,
                           prot_action->action_data.ctx);
         } else {
-          list->alert.active = true;
-          list->alert.title = prot_action->alert_title;
-          list->alert.text = prot_action->alert_text;
+        page_stack_portal_toggle(
+            &g_page_stack, &PORTAL_MESSAGE_BOX,
+            &(portal_ctx_message_box_t){.title = "Warning", .msg = it->alert_text},
+            sizeof(portal_ctx_message_box_t));
         }
       }
       break;

@@ -5,6 +5,7 @@
 #include "easing.h"
 #include "page_stack.h"
 #include "screen.h"
+#include "portal_component.h"
 
 // ==========  配置项 ==========
 #define ICON_WIDTH 32
@@ -33,7 +34,7 @@ typedef struct {
 
 typedef struct {
   const char *title;
-  icon_type_t icon_type; // 新增：图标类型
+  icon_type_t icon_type; // 图标类型
   union {                // 共用体存储不同类型的图标数据
     const uint8_t *xbm;  // XBM位图数据
     uint16_t glyph;      // Glyph字符编码
@@ -50,7 +51,6 @@ typedef struct {
   uint32_t start_tick;
   uint32_t *main_tick;
   struct {
-    bool active; // 弹窗是否激活
     char *text;  // 提示文本
   } alert;
 } hlist_t;

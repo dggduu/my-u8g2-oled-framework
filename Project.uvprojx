@@ -1106,6 +1106,36 @@
             </File>
           </Files>
         </Group>
+        <Group>
+          <GroupName>portal</GroupName>
+          <Files>
+            <File>
+              <FileName>portal_component.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\User\UI\portal_component.c</FilePath>
+            </File>
+            <File>
+              <FileName>portal_component.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\UI\portal_component.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>toolkit</GroupName>
+          <Files>
+            <File>
+              <FileName>ui_toolkit.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\User\UI\ui_toolkit.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_toolkit.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\UI\ui_toolkit.h</FilePath>
+            </File>
+          </Files>
+        </Group>
       </Groups>
     </Target>
   </Targets>

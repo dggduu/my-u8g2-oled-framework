@@ -5,6 +5,7 @@
 #include "easing.h"
 #include "page_stack.h"
 #include "screen.h"
+#include "ui_toolkit.h"
 
 // ========== ≈‰÷√œÓ  ==========
 #define MAX_LIST_ITEMS 16

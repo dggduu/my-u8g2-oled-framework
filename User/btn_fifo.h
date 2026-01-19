@@ -34,14 +34,14 @@ typedef struct {
 void btn_fifo_init(void);
 
 /**
- * @brief 软件触发按键事件（向FIFO中添加按键）
+ * @brief 软件触发按键事件
  * @param btn 要触发的按键类型
  * @return true-添加成功，false-FIFO已满
  */
 bool btn_fifo_push(btn_type_t btn);
 
 /**
- * @brief 读取FIFO中的按键事件（出队）
+ * @brief 读取FIFO中的按键事件
  * @return 按键类型，BTN_NONE表示队列为空
  */
 btn_type_t btn_fifo_pop(void);

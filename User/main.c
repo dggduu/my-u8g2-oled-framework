@@ -183,8 +183,10 @@ static void uart_btn_process(void) {
       break;
     case 'l':
       btn_fifo_push(BTN_LEFT);
+      break;
     case 'r':
       btn_fifo_push(BTN_RIGHT);
+      break;
     default:
       break;
     }
@@ -198,6 +200,8 @@ int main(void) {
   btn_fifo_init();
   IIC_Init();
   u8g2Init(&u8g2);
+
+  // 这一段可以直接去掉
   splash_log_init(&u8g2, g_screen_cfg.font_height, u8g2_font_5x7_tf);
   splash_log_clear();
   splash_log_printf("splash_log inited");
@@ -210,11 +214,11 @@ int main(void) {
   Delay_ms(100);
   splash_log_printf("...ok");
   Delay_ms(100);
-  splash_log_printf("        /Nya! Powered");
-  splash_log_printf("   /|/|       By");
-  splash_log_printf("  (- - |      dggduu's");
-  splash_log_printf("   |、~\       OLED UI");
-  splash_log_printf("  //_,)/      Toolkit");
+  splash_log_printf("        /Nya!  Powered");
+  splash_log_printf("   /|/|        By");
+  splash_log_printf("  (- - |       dggduu's");
+  splash_log_printf("   |、~\        U8g2 UI");
+  splash_log_printf("  //_,)/       Toolkit");
   Delay_ms(3000);
   splash_log_printf("test_float %.1f", 12.8);
   splash_log_printf("test_interger %2d", 120);
@@ -224,7 +228,7 @@ int main(void) {
   splash_log_printf("ready to test clear");
   Delay_ms(1000);
   splash_log_clear();
-
+  // 上面这些可以去掉
   page_stack_init(&g_page_stack, &u8g2);
   ui_menu_init();
 
