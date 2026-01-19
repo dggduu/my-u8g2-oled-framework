@@ -5,6 +5,7 @@
 #include "btn_fifo.h"
 #include "page_stack.h"
 #include "screen.h"
+#include "splash_log.h"
 #include "splash_screen.h"
 #include "stm32f10x.h"
 #include "u8g2.h"
@@ -110,9 +111,11 @@ static void ui_menu_init(void) {
   vlist_add_toggle(&g_setting_main_menu, "Mute Mode", &g_mute_mode);
   vlist_add_toggle(&g_setting_main_menu, "Bluetooth", &g_bt_state);
   vlist_add_protected_submenu(&g_setting_main_menu, "Protect.false",
-                              &g_setting_sub_menu, false, "Try Again!");
+                              &g_setting_sub_menu, false, "warinng",
+                              "Try Again!");
   vlist_add_protected_submenu(&g_setting_main_menu, "Protect.true",
-                              &g_setting_sub_menu, true, "Try Again!");
+                              &g_setting_sub_menu, true, "warinng",
+                              "Try Again!");
 
   // 添加OSC组件入口
   vlist_add_action(&g_setting_main_menu, "Oscilloscope", &OSC_APP_COMP, NULL);
@@ -121,10 +124,10 @@ static void ui_menu_init(void) {
                    &g_brick_break_ctx);
   vlist_add_protected_action(&g_setting_main_menu, "Brick Break (locked)",
                              &BRICK_BREAK_COMP, &g_brick_break_ctx, false,
-                             "This action is locked!");
+                             "warinng", "This action is locked!");
   vlist_add_protected_action(&g_setting_main_menu, "Brick Break (unlocked)",
                              &BRICK_BREAK_COMP, &g_brick_break_ctx, true,
-                             "This action is locked!");
+                             "warinng", "This action is locked!");
 
   // 关于菜单
   vlist_add_plain_text(&g_about_menu, "Version: 0.0.1");
@@ -154,6 +157,8 @@ static void ui_menu_init(void) {
   page_stack_register_global_btn_cb(&g_page_stack, global_btn_handler);
   // 初始页面
   splash_screen_jump();
+  // 直接进入Hlist，需要将上面的SplashScreen相关的删除
+  // page_stack_push(&g_page_stack, &HLIST_COMP, &g_main_hlist);
 }
 
 // ===================== 串口按键处理 =====================
@@ -176,6 +181,10 @@ static void uart_btn_process(void) {
     case 'h':
       btn_fifo_push(BTN_LONG_PRESS);
       break;
+    case 'l':
+      btn_fifo_push(BTN_LEFT);
+    case 'r':
+      btn_fifo_push(BTN_RIGHT);
     default:
       break;
     }
@@ -189,6 +198,32 @@ int main(void) {
   btn_fifo_init();
   IIC_Init();
   u8g2Init(&u8g2);
+  splash_log_init(&u8g2, g_screen_cfg.font_height, u8g2_font_5x7_tf);
+  splash_log_clear();
+  splash_log_printf("splash_log inited");
+  Delay_ms(100);
+  splash_log_printf("btn_fifo inited");
+  Delay_ms(100);
+  splash_log_printf("PWM inited");
+  Delay_ms(100);
+  splash_log_printf("UART inited");
+  Delay_ms(100);
+  splash_log_printf("...ok");
+  Delay_ms(100);
+  splash_log_printf("        /Nya! Powered");
+  splash_log_printf("   /|/|       By");
+  splash_log_printf("  (- - |      dggduu's");
+  splash_log_printf("   |、~\       OLED UI");
+  splash_log_printf("  //_,)/      Toolkit");
+  Delay_ms(3000);
+  splash_log_printf("test_float %.1f", 12.8);
+  splash_log_printf("test_interger %2d", 120);
+  splash_log_printf("test_string %s", "hello world");
+  splash_log_printf("test_ovweflow %s", "hello world sdhjsdjdshj");
+  Delay_ms(200);
+  splash_log_printf("ready to test clear");
+  Delay_ms(1000);
+  splash_log_clear();
 
   page_stack_init(&g_page_stack, &u8g2);
   ui_menu_init();

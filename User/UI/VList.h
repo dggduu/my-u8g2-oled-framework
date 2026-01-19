@@ -9,7 +9,6 @@
 // ========== 配置项  ==========
 #define MAX_LIST_ITEMS 16
 #define VLIST_ITEM_H 14
-#define ALERT_TITLE		"alert"
 #define VLIST_ANIM_FUC		QuadraticEaseOut
 
 extern const Screen_t g_screen_cfg;
@@ -30,10 +29,10 @@ typedef struct {
     void *ctx;                     // 组件上下文
 } vlist_action_data_t;
 
-// 带保护的ACTION数据结构（新增）
 typedef struct {
     vlist_action_data_t action_data; // 组件跳转数据
     bool guard_flag;                 // 保护标志
+    char *alert_title;               // 保护提示标题
     char *alert_text;                // 保护提示文本
 } vlist_protected_action_data_t;
 
@@ -45,12 +44,13 @@ typedef struct {
                    // - VITEM_NUM_EDIT: float*
                    // - VITEM_SUBMENU/VITEM_PROTECTED_SUBMENU: vlist_t*
                    // - VITEM_ACTION: vlist_action_data_t*
-                   // - VITEM_PROTECTED_ACTION: vlist_protected_action_data_t*（新增）
+                   // - VITEM_PROTECTED_ACTION: vlist_protected_action_data_t*
                    // - VITEM_PLAIN_TEXT: NULL
   float min, max, step;
-  void (*callback)(void *ctx);     // 保留原有回调
+  void (*callback)(void *ctx);
   // 保护子菜单扩展字段
   bool guard_flag;  // 保护标志
+  char *alert_title; // 保护提示标题
   char *alert_text; // 保护提示文本
 } vitem_t;
 
@@ -71,6 +71,7 @@ typedef struct {
   // 提示弹窗状态
   struct {
     bool active; // 弹窗是否激活
+    char *title; // 提示标题
     char *text;  // 提示文本
   } alert;
 } vlist_t;
@@ -87,9 +88,9 @@ void vlist_add_action(vlist_t *list, const char *title, const page_component_t *
 void vlist_add_plain_text(vlist_t *list, const char *title);
 void vlist_add_protected_submenu(vlist_t *list, const char *title,
                                  vlist_t *child, bool guard_flag,
-                                 char *alert_text);
+                                 char *alert_title, char *alert_text);
 void vlist_add_protected_action(vlist_t *list, const char *title, 
                                 const page_component_t *comp, void *ctx,
-                                bool guard_flag, char *alert_text);
+                                bool guard_flag, char *alert_title, char *alert_text);
 
 #endif

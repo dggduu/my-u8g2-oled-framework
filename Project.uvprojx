@@ -1064,6 +1064,16 @@
               <FileType>5</FileType>
               <FilePath>.\User\UI\splash_screen.h</FilePath>
             </File>
+            <File>
+              <FileName>splash_log.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\User\UI\splash_log.c</FilePath>
+            </File>
+            <File>
+              <FileName>splash_log.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\UI\splash_log.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

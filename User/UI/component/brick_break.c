@@ -235,13 +235,13 @@ static void brick_break_input(int btn, void *ctx) {
             
         case GAME_STATE_PLAYING:
             // 挡板连续移动：直接修改坐标，每一帧都会刷新
-            if (btn == BTN_LEFT && game_ctx->paddle_x > 0) {
+            if (btn == BTN_UP && game_ctx->paddle_x > 0) {
                 game_ctx->paddle_x -= PADDLE_SPEED;
                 // 修复：使用game_ctx而非ctx，且修正溢出判断逻辑
                 if (game_ctx->paddle_x > game_ctx->screen->width) { 
                     game_ctx->paddle_x = 0;
                 }
-            } else if (btn == BTN_RIGHT && 
+            } else if (btn == BTN_DOWN && 
                        (game_ctx->paddle_x + PADDLE_WIDTH) < game_ctx->screen->width) {
                 game_ctx->paddle_x += PADDLE_SPEED;
                 if (game_ctx->paddle_x + PADDLE_WIDTH > game_ctx->screen->width) {

@@ -5,6 +5,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#define PREFIX_SUBMENU "-"
+#define PREFIX_ACTION ">"
+
 /**
  * @brief 工具函数，获取右侧元素宽度
  * @return 宽度（u8）
@@ -27,7 +30,8 @@ static uint8_t get_right_item_width(u8g2_t *u8g2, const Screen_t *screen_cfg,
                                                   : screen_cfg->num_min_width);
   }
   case VITEM_ACTION:
-    return screen_cfg->action_width;
+  case VITEM_PROTECTED_ACTION:
+    return 0;
   case VITEM_SUBMENU:
   case VITEM_PROTECTED_SUBMENU:
     return 0;
@@ -178,7 +182,7 @@ static void draw_alert_window(u8g2_t *u8g2, const Screen_t *screen_cfg,
   u8g2_DrawFrame(u8g2, x, y, w, h);
 
   u8g2_SetFont(u8g2, screen_cfg->sub_window_font);
-  const char *alert_title = ALERT_TITLE;
+  const char *alert_title = list->alert.title ? list->alert.title : "alert";
   int title_width = u8g2_GetStrWidth(u8g2, alert_title);
   g_screen_cfg.draw_text(u8g2, x + (w - title_width) / 2, y + 12, alert_title);
 
@@ -264,10 +268,8 @@ void vlist_draw(u8g2_t *u8g2, void *ctx) {
     uint8_t clip_y1, clip_y2;
 
     if (is_highlighted) {
-      // 计算高亮框的实际位置
       box_y = (int)(ease_idx * (screen_cfg->font_height + 3)) - scroll_y + 2;
 
-      // 计算目标宽度
       int title_text_width = u8g2_GetStrWidth(u8g2, curr_item->title);
       int target_highlight_width =
           title_text_width + screen_cfg->highlight_padding;
@@ -277,7 +279,6 @@ void vlist_draw(u8g2_t *u8g2, void *ctx) {
       if (target_highlight_width < 20)
         target_highlight_width = 20;
 
-      // 计算起始宽度
       int start_highlight_width = 20;
       if (list->from_index >= 0 && list->from_index < list->count) {
         vitem_t *from_item = &list->items[list->from_index];
@@ -291,18 +292,15 @@ void vlist_draw(u8g2_t *u8g2, void *ctx) {
           start_highlight_width = 20;
       }
 
-      // 动画插值计算当前宽度
       highlight_box_width =
           (int)(start_highlight_width +
                 (target_highlight_width - start_highlight_width) *
                     VLIST_ANIM_FUC(p));
 
+      // PREFIX 区域
       int highlight_box_x =
           screen_cfg->title_left_margin - (screen_cfg->highlight_padding / 2);
-      if (highlight_box_x < 2)
-        highlight_box_x = 2;
 
-      // 绘制高亮框
       u8g2_SetDrawColor(u8g2, 1);
       u8g2_DrawRBox(u8g2, highlight_box_x, box_y, highlight_box_width,
                     screen_cfg->highlight_height, 2);
@@ -319,11 +317,11 @@ void vlist_draw(u8g2_t *u8g2, void *ctx) {
 
     if (curr_item->type == VITEM_SUBMENU ||
         curr_item->type == VITEM_PROTECTED_SUBMENU) {
-      g_screen_cfg.draw_text(u8g2, 5, item_y, "-");
+      g_screen_cfg.draw_text(u8g2, 5, item_y, PREFIX_SUBMENU);
     }
-    // ACTION项添加箭头标识
-    else if (curr_item->type == VITEM_ACTION) {
-      g_screen_cfg.draw_text(u8g2, 5, item_y, ">");
+    else if (curr_item->type == VITEM_ACTION ||
+             curr_item->type == VITEM_PROTECTED_ACTION) {
+      g_screen_cfg.draw_text(u8g2, 5, item_y, PREFIX_ACTION);
     }
 
     // ========== 绘制标题 ==========
@@ -385,10 +383,10 @@ void vlist_init(vlist_t *list, uint32_t *tick_ptr) {
   list->to_index = 0;
   list->start_tick = *tick_ptr;
   list->alert.active = false;
+  list->alert.title = NULL;
   list->alert.text = NULL;
 }
 
-// 改造后的vlist_add_action：作为组件入口
 void vlist_add_action(vlist_t *list, const char *title,
                       const page_component_t *comp, void *ctx) {
   if (list == NULL || title == NULL || comp == NULL) {
@@ -468,7 +466,8 @@ void vlist_add_submenu(vlist_t *list, const char *title, vlist_t *child) {
 
 void vlist_add_protected_action(vlist_t *list, const char *title,
                                 const page_component_t *comp, void *ctx,
-                                bool guard_flag, char *alert_text) {
+                                bool guard_flag, char *alert_title,
+                                char *alert_text) {
   if (list == NULL || title == NULL || comp == NULL || alert_text == NULL) {
     return;
   }
@@ -482,6 +481,7 @@ void vlist_add_protected_action(vlist_t *list, const char *title,
     prot_action_data->action_data.comp = comp;
     prot_action_data->action_data.ctx = ctx;
     prot_action_data->guard_flag = guard_flag;
+    prot_action_data->alert_title = alert_title;
     prot_action_data->alert_text = alert_text;
 
     vitem_t *it = &list->items[list->count++];
@@ -490,13 +490,14 @@ void vlist_add_protected_action(vlist_t *list, const char *title,
     it->user_data = prot_action_data;
     it->callback = NULL;
     it->guard_flag = guard_flag;
+    it->alert_title = alert_title;
     it->alert_text = alert_text;
   }
 }
 
 void vlist_add_protected_submenu(vlist_t *list, const char *title,
                                  vlist_t *child, bool guard_flag,
-                                 char *alert_text) {
+                                 char *alert_title, char *alert_text) {
   if (list == NULL || title == NULL || child == NULL || alert_text == NULL) {
     return;
   }
@@ -507,6 +508,7 @@ void vlist_add_protected_submenu(vlist_t *list, const char *title,
     it->type = VITEM_PROTECTED_SUBMENU;
     it->user_data = child;
     it->guard_flag = guard_flag;
+    it->alert_title = alert_title;
     it->alert_text = alert_text;
   }
 }
@@ -529,6 +531,7 @@ void vlist_input_handler(int btn, void *ctx) {
   if (list->alert.active) {
     if (btn == BTN_ENTER || btn == BTN_BACK) {
       list->alert.active = false; // 关闭弹窗
+      list->alert.title = NULL;
       list->alert.text = NULL;
     }
     return;
@@ -600,7 +603,6 @@ void vlist_input_handler(int btn, void *ctx) {
       break;
     case VITEM_PROTECTED_SUBMENU:
       if (it->guard_flag) {
-        // 保护标志为true，直接进入子菜单
         if (it->user_data) {
           vlist_t *child = (vlist_t *)it->user_data;
           child->from_index = 0;
@@ -609,36 +611,33 @@ void vlist_input_handler(int btn, void *ctx) {
           page_stack_push(&g_page_stack, &VLIST_COMP, child);
         }
       } else {
-        // 保护标志为false，弹出提示弹窗
         list->alert.active = true;
+        list->alert.title = it->alert_title;
         list->alert.text = it->alert_text;
       }
       break;
     case VITEM_ACTION:
-      // 优先处理组件跳转
       if (it->user_data && ((vlist_action_data_t *)it->user_data)->comp) {
         vlist_action_data_t *action_data = (vlist_action_data_t *)it->user_data;
         page_stack_push(&g_page_stack, action_data->comp, action_data->ctx);
       }
       break;
-    // 新增：带保护的组件入口处理逻辑
+    //带保护的组件入口处理逻辑
     case VITEM_PROTECTED_ACTION:
       if (it->user_data) {
         vlist_protected_action_data_t *prot_action =
             (vlist_protected_action_data_t *)it->user_data;
         if (prot_action->guard_flag) {
-          // 保护标志为true，直接跳转到目标组件
           page_stack_push(&g_page_stack, prot_action->action_data.comp,
                           prot_action->action_data.ctx);
         } else {
-          // 保护标志为false，弹出提示弹窗
           list->alert.active = true;
+          list->alert.title = prot_action->alert_title;
           list->alert.text = prot_action->alert_text;
         }
       }
       break;
     case VITEM_PLAIN_TEXT:
-      // 纯文本无交互
       break;
     }
   }

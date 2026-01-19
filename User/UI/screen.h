@@ -3,9 +3,7 @@
 #include "u8g2.h"
 #include "stdbool.h"
 
-// ===================== 前置类型定义 =====================
-// 文字绘制回调函数类型（适配UTF8/普通字符串）
-// 参数：u8g2实例、x坐标、y坐标、要绘制的文本
+
 typedef void (*screen_draw_text_cb_t)(u8g2_t *u8g2, uint16_t x, uint16_t y, const char *text);
 
 // ===================== 屏幕/字体配置结构体 =====================
@@ -20,7 +18,7 @@ typedef struct {
   uint8_t font_baseline; // 字体基线偏移
 	const uint8_t *sub_window_font;	// 子窗口使用的字体
   
-  // 文本编码配置（新增）
+  // 文本编码配置
   bool is_utf8;                  // UTF8编码标志：true=使用UTF8绘制，false=使用普通ASCII
   screen_draw_text_cb_t draw_text; // 自定义文字绘制回调
   
