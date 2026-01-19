@@ -759,16 +759,6 @@
               <FileType>5</FileType>
               <FilePath>.\User\ui.h</FilePath>
             </File>
-            <File>
-              <FileName>page_stack.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\User\page_stack.c</FilePath>
-            </File>
-            <File>
-              <FileName>page_stack.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\User\page_stack.h</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>
@@ -1073,6 +1063,16 @@
               <FileName>splash_log.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\User\UI\splash_log.h</FilePath>
+            </File>
+            <File>
+              <FileName>page_stack.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\User\UI\page_stack.c</FilePath>
+            </File>
+            <File>
+              <FileName>page_stack.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\User\UI\page_stack.h</FilePath>
             </File>
           </Files>
         </Group>

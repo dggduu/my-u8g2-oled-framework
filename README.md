@@ -4,6 +4,8 @@
 测试平台:  
 - stm32f103c8t6 （标准库实现）  
 - SSD1306(128x64)  
+### 例程空间使用情况
+**Program Size: Code=22392 RO-data=18172 RW-data=72 ZI-data=5768**
 ### 推荐使用方式
 ```c
 (splash_log-)SplashScreen - HList - VList - VList - ...
@@ -31,7 +33,7 @@ page_stack_portal_toggle(
     &(portal_ctx_message_box_t){.title = "Warning", .msg = it->alert_text},
     sizeof(portal_ctx_message_box_t));
 ```
-**你需要访问 `portal_component.h` 来查看相对应的 portal 上下文结构体定义以及portal组件的名称**  
+**访问 `portal_component.h` 来查看相对应的 portal 上下文结构体定义以及portal组件的名称**  
 #### 如何编写新的 portal 组件
 访问 `portal_component.h`后，你会发现 portal 组件这样定义的
 ```c
@@ -67,7 +69,8 @@ const portal_component_t PORTAL_MESSAGE_BOX = {
 // 导出组件
 extern const portal_component_t PORTAL_MESSAGE_BOX;
 ```
-### Protected组件
+### Protected 组件
+灵感来自 Expo 中的Protected Route，但是这里没有Route的概念，后续可能会留出`guard_flag = false`时的回调，用于像是重新联网、重新加载数据等  
 当 guard_flag 为 false 时弹出弹窗，并无法进行下一步操作（如跳转到下一个page,menu...）  
 当 guard_flag 为 true 时不会弹出弹窗，直接进行下一步操作
 ### 自定义组件
@@ -79,7 +82,7 @@ const page_component_t OSC_APP_COMP = {.draw = osc_app_draw,.input = osc_app_inp
 你可以查看main.c(下面的例程)中的`OSC_APP_COMP`以及`User - UI - Component`下面看看如何使用  
 
 ## How to porting
-将User - UI 下的文件以及 btn_fifo 复制出来即可。btn_fifo.h 中定义了框架中所使用的按键类型，目前没有做按键类型桥接层的计划，需要自己实现。
+将 `User - UI` 路径下的文件以及 btn_fifo 复制出来即可。btn_fifo.h 中定义了框架中所使用的按键类型，目前没有做按键类型桥接层的计划，需要自己实现。
 ## How to use
 ```c
 #include "Delay.h"
