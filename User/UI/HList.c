@@ -113,7 +113,7 @@ void hlist_draw(u8g2_t *u8g2, void *ctx) {
         if (hl->items[i].icon_type == ICON_TYPE_XBM) {
             u8g2_DrawXBM(u8g2, x, icon_y, ICON_WIDTH, ICON_HEIGHT, hl->items[i].icon_data.xbm);
         } else {
-            u8g2_SetFont(u8g2, HLIST_ICON_FONT);
+            u8g2_SetFont(u8g2, g_screen_cfg.icon_font);
             u8g2_DrawGlyph(u8g2, x + 2, icon_y + ICON_HEIGHT - 2, hl->items[i].icon_data.glyph);
         }
     }

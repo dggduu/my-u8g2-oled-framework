@@ -13,7 +13,6 @@
 #define ICON_GAP 50
 // 配置文本使用的字体
 #define HLIST_TEXT_FONT u8g2_font_8x13_tr
-#define HLIST_ICON_FONT u8g2_font_open_iconic_all_4x_t
 // 动画时长
 #define HLIST_ANIM_TICKS 15
 // 图标使用的缓动动画

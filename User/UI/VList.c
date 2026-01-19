@@ -1,5 +1,4 @@
 #include "VList.h"
-#include "portal_component.h"
 #include "u8g2.h"
 #include <math.h>
 #include <stdint.h>
@@ -7,6 +6,10 @@
 #include <string.h>
 #define PREFIX_SUBMENU "-"
 #define PREFIX_ACTION ">"
+
+#if ENABLE_VLIST_PROGRESS
+#define PREFIX_PROGRESS	"~"
+#endif
 
 /**
  * @brief 工具函数，获取右侧元素宽度
@@ -25,6 +28,15 @@ static uint8_t get_right_item_width(u8g2_t *u8g2, const Screen_t *screen_cfg,
       return screen_cfg->num_min_width;
     char buf[16];
     sprintf(buf, "%.1f", *(float *)item->user_data);
+    int num_width = u8g2_GetStrWidth(u8g2, buf);
+    return (num_width > screen_cfg->num_min_width ? num_width
+                                                  : screen_cfg->num_min_width);
+  }
+  case VITEM_PRECISE_EDIT: {
+    if (item->user_data == NULL)
+      return screen_cfg->num_min_width;
+    char buf[16];
+    sprintf(buf, "%u", *(uint16_t *)item->user_data);
     int num_width = u8g2_GetStrWidth(u8g2, buf);
     return (num_width > screen_cfg->num_min_width ? num_width
                                                   : screen_cfg->num_min_width);
@@ -52,150 +64,108 @@ static uint8_t get_right_item_width(u8g2_t *u8g2, const Screen_t *screen_cfg,
  * @return
  */
 void vlist_draw(u8g2_t *u8g2, void *ctx) {
-  if (u8g2 == NULL || ctx == NULL) {
-    return;
-  }
+  if (u8g2 == NULL || ctx == NULL) return;
 
   vlist_t *list = (vlist_t *)ctx;
   const Screen_t *screen_cfg = &g_screen_cfg;
+  if (list->count == 0) return;
 
-  if (list->count == 0) {
-    return;
-  }
+  float p = fminf((float)(*list->main_tick - list->start_tick) / screen_cfg->animation_duration, 1.0f);
+  float ease_p = VLIST_ANIM_FUC(p);
+  float ease_idx = list->from_index + (list->to_index - list->from_index) * ease_p;
 
-  float p = fminf((float)(*list->main_tick - list->start_tick) /
-                      screen_cfg->animation_duration,
-                  1.0f);
-  float ease_idx = list->from_index +
-                   (list->to_index - list->from_index) * VLIST_ANIM_FUC(p);
-
+  // 滚动偏移计算
   int scroll_y = 0;
   if (ease_idx > 3.0f) {
     scroll_y = (int)((ease_idx - 3.0f) * (screen_cfg->font_height + 3));
   }
 
+  // 绘制右侧滚动条
   u8g2_SetDrawColor(u8g2, 1);
-  int from_bar_len =
-      (int)(64.0f * ((float)(list->from_index + 1) / list->count));
+  int from_bar_len = (int)(64.0f * ((float)(list->from_index + 1) / list->count));
   int to_bar_len = (int)(64.0f * ((float)(list->to_index + 1) / list->count));
-  int curr_bar_len =
-      (int)(from_bar_len + (to_bar_len - from_bar_len) * VLIST_ANIM_FUC(p));
+  int curr_bar_len = (int)(from_bar_len + (to_bar_len - from_bar_len) * ease_p);
   u8g2_DrawVLine(u8g2, screen_cfg->width - 1, 0, curr_bar_len);
 
   u8g2_SetFont(u8g2, screen_cfg->font);
 
   for (int i = 0; i < list->count; i++) {
-    int item_y = (i * (screen_cfg->font_height + 3)) - scroll_y +
-                 screen_cfg->font_baseline + 2;
-    if (item_y < -screen_cfg->font_height || item_y > screen_cfg->height) {
-      continue;
-    }
-
     vitem_t *curr_item = &list->items[i];
+    int item_y = (i * (screen_cfg->font_height + 3)) - scroll_y + screen_cfg->font_baseline + 2;
 
-    // ========== 计算右侧元素信息 ==========
-    uint8_t right_item_width =
-        get_right_item_width(u8g2, screen_cfg, curr_item);
-    uint8_t right_item_start_x =
-        screen_cfg->width - right_item_width - screen_cfg->right_item_margin;
-
-    // ========== 统一计算标题可用宽度 ==========
-    uint8_t title_available_width = right_item_start_x -
-                                    screen_cfg->title_left_margin -
-                                    screen_cfg->right_item_left_padding;
-
-    if (title_available_width <= 0)
-      title_available_width = 1;
+    if (item_y < -screen_cfg->font_height || item_y > screen_cfg->height + 10) continue;
+    uint8_t right_item_w = get_right_item_width(u8g2, screen_cfg, curr_item);
+    uint8_t right_item_x = screen_cfg->width - right_item_w - screen_cfg->right_item_margin;
+    uint8_t base_avail_width = right_item_x - screen_cfg->title_left_margin - 5;
 
     bool is_highlighted = (i == list->to_index);
-    int box_y = 0;
-    int highlight_box_width = 0;
-
-    // ========== 高亮框绘制和裁切区域计算 ==========
     uint8_t clip_y1, clip_y2;
 
     if (is_highlighted) {
-      box_y = (int)(ease_idx * (screen_cfg->font_height + 3)) - scroll_y + 2;
-
-      int title_text_width = u8g2_GetStrWidth(u8g2, curr_item->title);
-      int target_highlight_width =
-          title_text_width + screen_cfg->highlight_padding;
-      if (target_highlight_width > title_available_width) {
-        target_highlight_width = title_available_width;
-      }
-      if (target_highlight_width < 20)
-        target_highlight_width = 20;
-
-      int start_highlight_width = 20;
+      int box_y = (int)(ease_idx * (screen_cfg->font_height + 3)) - scroll_y + 2;
+      int target_w = u8g2_GetStrWidth(u8g2, curr_item->title) + screen_cfg->highlight_padding;
+      int start_w = 20;
       if (list->from_index >= 0 && list->from_index < list->count) {
-        vitem_t *from_item = &list->items[list->from_index];
-        int from_title_width = u8g2_GetStrWidth(u8g2, from_item->title);
-        start_highlight_width =
-            from_title_width + screen_cfg->highlight_padding;
-        if (start_highlight_width > title_available_width) {
-          start_highlight_width = title_available_width;
-        }
-        if (start_highlight_width < 20)
-          start_highlight_width = 20;
+          start_w = u8g2_GetStrWidth(u8g2, list->items[list->from_index].title) + screen_cfg->highlight_padding;
       }
 
-      highlight_box_width =
-          (int)(start_highlight_width +
-                (target_highlight_width - start_highlight_width) *
-                    VLIST_ANIM_FUC(p));
+      // 限制不超出右侧元素
+      int max_w = right_item_x - screen_cfg->title_left_margin + (screen_cfg->highlight_padding / 2);
+      if (target_w > max_w) target_w = max_w;
+      if (start_w > max_w) start_w = max_w;
 
-      // PREFIX 区域
-      int highlight_box_x =
-          screen_cfg->title_left_margin - (screen_cfg->highlight_padding / 2);
+      int cur_box_w = (int)(start_w + (target_w - start_w) * ease_p);
+      int box_x = screen_cfg->title_left_margin - (screen_cfg->highlight_padding / 2);
 
+      // 绘制高亮背景
       u8g2_SetDrawColor(u8g2, 1);
-      u8g2_DrawRBox(u8g2, highlight_box_x, box_y, highlight_box_width,
-                    screen_cfg->highlight_height, 2);
+      u8g2_DrawRBox(u8g2, box_x, box_y, cur_box_w, screen_cfg->highlight_height, g_screen_cfg.hightlight_radius);
 
+      int text_clip_x = box_x + 2;
+      int text_clip_w = cur_box_w - 4;
       clip_y1 = box_y + 1;
       clip_y2 = box_y + screen_cfg->highlight_height - 1;
 
+      // 绘制前缀
       u8g2_SetDrawColor(u8g2, 0);
+      const char* prefix = "";
+      if (curr_item->type == VITEM_SUBMENU || curr_item->type == VITEM_PROTECTED_SUBMENU) prefix = PREFIX_SUBMENU;
+      else if (curr_item->type == VITEM_ACTION || curr_item->type == VITEM_PROTECTED_ACTION) prefix = PREFIX_ACTION;
+      else if (curr_item->type == VITEM_PROGRESS) prefix = PREFIX_PROGRESS;
+      g_screen_cfg.draw_text(u8g2, 5, item_y, prefix);
+
+      // 绘制标题
+      draw_scroll_text_with_pause(u8g2, screen_cfg, curr_item->title, 
+                                  screen_cfg->title_left_margin, text_clip_w, 
+                                  item_y, *list->main_tick, clip_y1, clip_y2);
     } else {
+      u8g2_SetDrawColor(u8g2, 1);
       clip_y1 = item_y - screen_cfg->font_height + 2;
       clip_y2 = item_y + 2;
-      u8g2_SetDrawColor(u8g2, 1);
+
+      const char* prefix = "";
+      if (curr_item->type == VITEM_SUBMENU || curr_item->type == VITEM_PROTECTED_SUBMENU) prefix = PREFIX_SUBMENU;
+      else if (curr_item->type == VITEM_ACTION || curr_item->type == VITEM_PROTECTED_ACTION) prefix = PREFIX_ACTION;
+      else if (curr_item->type == VITEM_PROGRESS) prefix = PREFIX_PROGRESS;
+      g_screen_cfg.draw_text(u8g2, 5, item_y, prefix);
+
+      draw_scroll_text_with_pause(u8g2, screen_cfg, curr_item->title, 
+                                  screen_cfg->title_left_margin, base_avail_width, 
+                                  item_y, *list->main_tick, clip_y1, clip_y2);
     }
 
-    if (curr_item->type == VITEM_SUBMENU ||
-        curr_item->type == VITEM_PROTECTED_SUBMENU) {
-      g_screen_cfg.draw_text(u8g2, 5, item_y, PREFIX_SUBMENU);
-    } else if (curr_item->type == VITEM_ACTION ||
-               curr_item->type == VITEM_PROTECTED_ACTION) {
-      g_screen_cfg.draw_text(u8g2, 5, item_y, PREFIX_ACTION);
-    }
-
-    // ========== 绘制标题 ==========
-    draw_scroll_text_with_pause(
-        u8g2, screen_cfg, curr_item->title, screen_cfg->title_left_margin,
-        title_available_width, item_y, *list->main_tick, clip_y1, clip_y2);
-
-    // ========== 绘制右侧元素 ==========
-    u8g2_SetDrawColor(u8g2, 1);
-
+    // --- 绘制右侧交互元素---
+    u8g2_SetDrawColor(u8g2, 1); // 恢复颜色
     if (curr_item->type == VITEM_CLICK && curr_item->user_data != NULL) {
       bool v = *(bool *)curr_item->user_data;
-      int switch_x = right_item_start_x;
-      if (v) {
-        u8g2_DrawBox(u8g2, switch_x, item_y - 8, 6, 6);
-      } else {
-        u8g2_DrawFrame(u8g2, switch_x, item_y - 8, 6, 6);
-      }
-    } else if (curr_item->type == VITEM_NUM_EDIT &&
-               curr_item->user_data != NULL) {
+      if (v) u8g2_DrawBox(u8g2, right_item_x, item_y - 8, 6, 6);
+      else u8g2_DrawFrame(u8g2, right_item_x, item_y - 8, 6, 6);
+    } 
+    else if ((curr_item->type == VITEM_NUM_EDIT || curr_item->type == VITEM_PRECISE_EDIT) && curr_item->user_data != NULL) {
       char b[16];
       sprintf(b, "%.1f", *(float *)curr_item->user_data);
-
-      uint8_t num_max_width =
-          right_item_width + screen_cfg->right_item_left_padding;
-      draw_scroll_text_with_pause(u8g2, screen_cfg, b, right_item_start_x,
-                                  num_max_width, item_y, *list->main_tick,
-                                  clip_y1, clip_y2);
+      draw_scroll_text_with_pause(u8g2, screen_cfg, b, right_item_x, right_item_w, 
+                                  item_y, *list->main_tick, clip_y1, clip_y2);
     }
   }
 }
@@ -349,6 +319,37 @@ void vlist_add_protected_submenu(vlist_t *list, const char *title,
   }
 }
 
+void vlist_add_precise_num(vlist_t *list, const char *title, float *val,
+                           float min, float max, uint8_t total_digit,
+                           uint8_t dot_pos) {
+  if (list == NULL || list->count >= MAX_LIST_ITEMS)
+    return;
+
+  vitem_t *it = &list->items[list->count++];
+  it->title = title;
+  it->type = VITEM_PRECISE_EDIT;
+  it->user_data = val;
+  it->min = min;
+  it->max = max;
+
+  it->total_digit = total_digit;
+  it->dot_pos = dot_pos;
+}
+
+#if ENABLE_VLIST_PROGRESS
+
+void vlist_add_protected_progress(vlist_t *list, const char *title,
+                                  void (*cb)(void *)) {
+  if (list->count >= MAX_LIST_ITEMS)
+    return;
+  vitem_t *it = &list->items[list->count++];
+  it->title = title;
+  it->type = VITEM_PROGRESS;
+  it->callback = (void (*)(void *))cb; // 借用 callback 指针存任务函数
+}
+
+#endif
+
 /**
  * @brief  输入处理函数
  *
@@ -397,12 +398,12 @@ void vlist_input_handler(int btn, void *ctx) {
     case VITEM_NUM_EDIT:
       page_stack_portal_toggle(&g_page_stack, &PORTAL_NUM,
                                &(portal_ctx_num_t){
-								   .title = "num_select",
-								   .val_ptr = (float*)it->user_data,
-								   .min = -100,
-								   .max = 100,
-								   .step = 3,
-								},
+                                   .title = "num_select",
+                                   .val_ptr = (float *)it->user_data,
+                                   .min = -100,
+                                   .max = 100,
+                                   .step = 3,
+                               },
                                sizeof(portal_ctx_num_t));
       break;
     case VITEM_SUBMENU:
@@ -424,10 +425,10 @@ void vlist_input_handler(int btn, void *ctx) {
           page_stack_push(&g_page_stack, &VLIST_COMP, child);
         }
       } else {
-        page_stack_portal_toggle(
-            &g_page_stack, &PORTAL_MESSAGE_BOX,
-            &(portal_ctx_message_box_t){.title = "Warning", .msg = it->alert_text},
-            sizeof(portal_ctx_message_box_t));
+        page_stack_portal_toggle(&g_page_stack, &PORTAL_MESSAGE_BOX,
+                                 &(portal_ctx_message_box_t){
+                                     .title = "Warning", .msg = it->alert_text},
+                                 sizeof(portal_ctx_message_box_t));
       }
       break;
       break;
@@ -446,14 +447,42 @@ void vlist_input_handler(int btn, void *ctx) {
           page_stack_push(&g_page_stack, prot_action->action_data.comp,
                           prot_action->action_data.ctx);
         } else {
-        page_stack_portal_toggle(
-            &g_page_stack, &PORTAL_MESSAGE_BOX,
-            &(portal_ctx_message_box_t){.title = "Warning", .msg = it->alert_text},
-            sizeof(portal_ctx_message_box_t));
+          page_stack_portal_toggle(
+              &g_page_stack, &PORTAL_MESSAGE_BOX,
+              &(portal_ctx_message_box_t){.title = "Warning",
+                                          .msg = it->alert_text},
+              sizeof(portal_ctx_message_box_t));
         }
       }
       break;
     case VITEM_PLAIN_TEXT:
+      break;
+#if ENABLE_VLIST_PROGRESS
+
+    case VITEM_PROGRESS:
+      page_stack_portal_toggle(
+          &g_page_stack, &PORTAL_PROGRESS,
+          &(portal_ctx_progress_t){.title = it->title,
+                                   .task_callback =
+                                       (void (*)(void *))it->callback,
+                                   .status = PROG_STATUS_WAIT,
+                                   .is_running = false},
+          sizeof(portal_ctx_progress_t));
+      break;
+
+#endif
+    case VITEM_PRECISE_EDIT:
+      page_stack_portal_toggle(&g_page_stack, &PORTAL_PRECISE_NUM,
+                               &(portal_ctx_precise_t){
+                                   .title = it->title,
+                                   .val_ptr = (float *)it->user_data,
+                                   .min = it->min,
+                                   .max = it->max,
+                                   .total_digit = it->total_digit,
+                                   .dot_pos = it->dot_pos,
+                                   .cursor_pos = 0,
+                               },
+                               sizeof(portal_ctx_precise_t));
       break;
     }
   }

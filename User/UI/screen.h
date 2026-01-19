@@ -17,6 +17,7 @@ typedef struct {
   uint8_t font_height;   // 字体高度
   uint8_t font_baseline; // 字体基线偏移
 	const uint8_t *sub_window_font;	// 子窗口使用的字体
+	const uint8_t *icon_font;		// 图标字体名
   
   // 文本编码配置
   bool is_utf8;                  // UTF8编码标志：true=使用UTF8绘制，false=使用普通ASCII
@@ -37,6 +38,7 @@ typedef struct {
   // 高亮框配置
   uint8_t highlight_padding; // 高亮框内边距
   uint8_t highlight_height;  // 高亮框高度
+  uint8_t hightlight_radius;
   
   // 右侧元素默认宽度
   uint8_t click_switch_width; // CLICK类型开关宽度
@@ -66,6 +68,7 @@ static inline void screen_draw_str(u8g2_t *u8g2, uint16_t x, uint16_t y, const c
       .height = 64,                 /* 屏幕高度 */                             \
       .font = u8g2_font_6x10_tf, /* 使用的字体 */       \
 	  .sub_window_font = u8g2_font_5x7_tf,										\
+	  .icon_font = u8g2_font_open_iconic_all_4x_t, \
       .font_height = 10,            /* 字体高度 */                             \
       .font_baseline = 10,          /* 字体基线 */                             \
       .is_utf8 = false,              /* UTF8启用标志 */       \
@@ -78,6 +81,7 @@ static inline void screen_draw_str(u8g2_t *u8g2, uint16_t x, uint16_t y, const c
       .animation_duration = 12,     /* 动画时长12tick */                       \
       .highlight_padding = 15,      /* 高亮框内边距 */                         \
       .highlight_height = 13,       /* 高亮框高度 */                           \
+	  .hightlight_radius = 3,													\
       .click_switch_width = 10,     /* CLICK开关宽度 */                        \
       .action_width = 0,            /* ACTION类型无右侧元素 */                 \
       .num_min_width = 30           /* NUM类型最小宽度 */                      \

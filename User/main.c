@@ -12,13 +12,14 @@
 #include "uart.h"
 #include "ui.h"
 #include <math.h>
+#include "portal_component.h"
 
 extern const uint8_t icon_list[][128];
 
 #define ICON_SETTINGS 0x0081 // 设置图标
 #define ICON_ABOUT 0x0114    // 关于图标
-#define ICON_LOCK 0x0057     // 保护项图标
-#define ICON_UNLOCK 0x0078   // 保护项图标
+#define ICON_LOCK 0x0057     // 叉叉图标
+#define ICON_UNLOCK 0x0078   // 对勾图标
 
 const Screen_t g_screen_cfg = DEFAULT_SCREEN_CONFIG;
 u8g2_t u8g2;
@@ -32,6 +33,7 @@ bool g_wifi_state = false;
 bool g_bt_state = true;
 bool g_mute_mode = false;
 float g_screen_brightness = 50.0f;
+float test_num = 0;
 
 // ===================== 自定义SplashScreen =====================
 static void my_splash_draw(u8g2_t *u8g2, const Screen_t *screen_cfg) {
@@ -92,6 +94,23 @@ static void osc_app_input(int btn, void *ctx) {
 const page_component_t OSC_APP_COMP = {.draw = osc_app_draw,
                                        .input = osc_app_input};
 
+void my_long_task(void *ctx) {
+    Progress_Log(ctx, "Initializing...");
+    Delay_ms(500);
+
+    Progress_Log(ctx, "Erasing...");
+    Delay_ms(800);
+
+    for (int i = 0; i <= 100; i += 20) {
+        Progress_Log(ctx, "Writing: %d%%", i);
+        Delay_ms(200);
+    }
+
+    // 成功结束
+    //Progress_SetSuccess(ctx);
+	Progress_SetFailed(ctx,"no idea");
+}
+									   
 // ===================== 菜单初始化 =====================
 static void ui_menu_init(void) {
   // 初始化列表
@@ -108,6 +127,9 @@ static void ui_menu_init(void) {
   vlist_add_num(&g_setting_sub_menu, "Brightness", &g_screen_brightness, 0, 100,
                 5);
   vlist_add_submenu(&g_setting_main_menu, "System Config", &g_setting_sub_menu);
+  vlist_add_precise_num(&g_setting_main_menu, "Precise Num Test", &test_num,
+                        -100, 200, 3,0);
+	vlist_add_protected_progress(&g_setting_main_menu, "Save Config", my_long_task);
   vlist_add_toggle(&g_setting_main_menu, "Mute Mode", &g_mute_mode);
   vlist_add_toggle(&g_setting_main_menu, "Bluetooth", &g_bt_state);
   vlist_add_protected_submenu(&g_setting_main_menu, "Protect.false",
